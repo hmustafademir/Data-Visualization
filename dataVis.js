@@ -41,7 +41,7 @@ function init() {
 
 	// data table
 	dataTable = d3.select('#dataTable');
- 
+
     // scatterplot SVG container and axes
     scatter = d3.select("#sp").append("svg")
         .attr("width", width)
@@ -66,36 +66,47 @@ function init() {
             console.log("data loaded: ");
             console.log(reader.result);
 
-            // TODO: parse reader.result data and call the init functions with the parsed data!
-            initVis(null);
-            CreateDataTable(null);
+            // parse reader.result data and call the init functions with the parsed data!
+            // Parse CSV data with d3.csvParse
+            let data = d3.csvParse(reader.result);
+            console.log("Parsed data: ", data);
+
+            initVis(data);
+
+            CreateDataTable(data);
             // TODO: possible place to call the dashboard file for Part 2
-            initDashboard(null);
+            initDashboard(data);
         };
         reader.readAsBinaryString(fileInput.files[0]);
     };
     fileInput.addEventListener('change', readFile);
 }
 
+function initVis(data){
 
-function initVis(_data){
-
-    // TODO: parse dimensions (i.e., attributes) from input file
-
+    // parse dimensions (i.e., attributes) from input file
+    let dimensions = (data.columns).slice(1);
+    //*HINT: the first dimension is often a label; It can simply remove the first dimension with
+    // splice() Changes the Original data so slice is used instead
+    // dimensions.splice(0, 1);
+    // dimensions = dimensions.slice(1);
 
     // y scalings for scatterplot
     // TODO: set y domain for each dimension
     let y = d3.scaleLinear()
+        .domain([0, d3.max(data, d => d.y)])
         .range([height - margin.bottom - margin.top, margin.top]);
 
     // x scalings for scatter plot
     // TODO: set x domain for each dimension
     let x = d3.scaleLinear()
+        .domain([0, d3.max(data, d => d.x)])
         .range([margin.left, width - margin.left - margin.right]);
 
     // radius scalings for radar chart
     // TODO: set radius domain for each dimension
     let r = d3.scaleLinear()
+        .domain([0, d3.max(data, d => d.r)])
         .range([0, radius]);
 
     // scatterplot axes
@@ -177,13 +188,58 @@ function clear(){
 }
 
 //Create Table
-function CreateDataTable(_data) {
+function CreateDataTable(data) {
 
-    // TODO: create table and add class
+    console.log("Print column of Table");
+    console.log(data.columns);
 
-    // TODO: add headers, row & columns
+    // create table and add class
+    // Select the table
+    let table = d3.select("#dataTable").append("table")
+              .classed("dataTableClass", true);
 
-    // TODO: add mouseover event
+    // add headers, row & columns
+    // Create the table header
+    let thead = table.append("thead");
+    let headers = data.columns;
+    thead.append("tr")
+        .selectAll("th")
+        .data(headers)
+        .enter()
+        .append("th")
+        .text(function(d) { return d; })
+        .classed("tableHeaderClass", true);
+
+    // Create the table body
+    let tbody = table.append("tbody")
+
+    // For each row in the data
+    data.forEach(function(d) {
+        // Append a row to the table body
+        let row = tbody.append("tr");
+        // For each column in the row
+        headers.forEach(function(key) {
+            // Append a cell to the row
+            row.append("td")
+                .text(d[key])
+                .classed("tableBodyClass", true);
+        });
+    });
+
+
+    // TODO: Table pagination, to allow manage long tables - Suggestion
+    // TODO: Search and filter to filter columns - Suggestion
+
+    // add mouseover event
+    d3.selectAll("#dataTable tbody tr td")
+        .on("mouseover", function() {
+            // 'this' refers to the current table row being hovered
+            d3.select(this).style("background-color", "lightblue");
+        })
+        .on("mouseout", function() {
+            // Reset the background color when the mouse leaves the row
+            d3.select(this).style("background-color", null);
+        });
 
 }
 function renderScatterplot(){
