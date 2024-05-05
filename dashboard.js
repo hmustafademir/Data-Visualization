@@ -9,6 +9,7 @@
 * All rights reserved.
 */
 
+// Use this website as a motivation: https://observablehq.com/framework/examples/eia/
 // TODO: File for Part 2
 // TODO: You can edit this file as you wish - add new methods, variables etc. or change/delete existing ones.
 
