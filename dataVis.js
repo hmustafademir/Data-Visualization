@@ -12,6 +12,7 @@
 // Important Websites used:
 //https://sabahatiqbal.medium.com/building-a-scatter-plot-with-d3-js-66178fde56ac
 //https://medium.com/@john.goodman/getting-started-with-d3-js-6de226320878
+//https://npmtrends.com/d3-spider-chart
 //
 // scatterplot axes
 let xAxis, yAxis, xAxisLabel, yAxisLabel;
@@ -31,7 +32,7 @@ let margin, width, height, radius;
 let scatter, radar, dataTable;
 
 // Add additional variables
-let x, y, r, data;
+ let x, y, size, r, data, filteredData;
 
 function init() {
     // define size of plots
@@ -75,25 +76,27 @@ function init() {
             data = d3.csvParse(reader.result);
             console.log("Parsed data: ", data);
 
-            initVis(data);
+            initVis();
 
-            CreateDataTable(data);
+            CreateDataTable();
             // TODO: possible place to call the dashboard file for Part 2
-            initDashboard(data);
+            initDashboard();
         };
         reader.readAsBinaryString(fileInput.files[0]);
     };
     fileInput.addEventListener('change', readFile);
 }
 
-function initVis(data){
+function initVis(){
 
     // parse dimensions (i.e., attributes) from input file
-    let dimensions = (data.columns).slice(1);
+    dimensions = (data.columns).slice(1);
     //*HINT: the first dimension is often a label; It can simply remove the first dimension with
     // splice() Changes the Original data so slice is used instead
     // dimensions.splice(0, 1);
     // dimensions = dimensions.slice(1);
+
+    filteredData = data;
 
     // y scalings for scatterplot
     // TODO: set y domain for each dimension
@@ -107,14 +110,24 @@ function initVis(data){
         .domain([d3.min(data, d => d[dimensions[0]]), d3.max(data, d => d[dimensions[0]])])
         .range([margin.left, width - margin.left - margin.right]);
 
-    console.log("Dimensions loaded: ", channels[1]);
-    console.log( [Math.floor(d3.min(data, d => +d[dimensions[1]]) / 10) * 10, Math.ceil(d3.max(data, d => +d[dimensions[1]]) / 10) * 10]);
+    // console.log("Dimensions loaded: ", channels[1]);
+    // console.log( [Math.floor(d3.min(data, d => +d[dimensions[1]]) / 10) * 10, Math.ceil(d3.max(data, d => +d[dimensions[1]]) / 10) * 10]);
+
+    size = d3.scaleLinear()
+        .domain([d3.min(data, d => d[dimensions[0]]), d3.max(data, d => d[dimensions[0]])])
+        .range([2, 10]);
+
 
     // radius scalings for radar chart
     // TODO: set radius domain for each dimension
     r = d3.scaleLinear()
-        .domain([d3.min(data, d => d[dimensions[0]]), d3.max(data, d => d[dimensions[0]])])
-        .range([0, radius]);
+        .domain([d3.min(dimensions, dim => d3.min(data, d => d[dim])), d3.max(dimensions, dim => d3.max(data, d => d[dim]))])
+        .range([20, radius/8]);
+
+    console.log("Radius", radius)
+    
+
+    console.log("Min Max", [d3.min(dimensions, dim => d3.min(data, d => d[dim])), d3.max(dimensions, dim => d3.max(data, d => d[dim]))] )
 
     // scatterplot axes
     yAxis = scatter.append("g")
@@ -139,8 +152,10 @@ function initVis(data){
 
     // radar chart axes
     radarAxesAngle = Math.PI * 2 / dimensions.length;
+    console.log("radarAxesAngle-----------------------", radarAxesAngle)
     let axisRadius = d3.scaleLinear()
         .range([0, radius]);
+
     let maxAxisRadius = 0.75,
         textRadius = 0.8;
     gridRadius = 0.1;
@@ -151,6 +166,7 @@ function initVis(data){
         .enter()
         .append("g")
         .attr("class", "axis");
+    
 
     radarAxes.append("line")
         .attr("x1", 0)
@@ -159,6 +175,7 @@ function initVis(data){
         .attr("y2", function(d, i){ return radarY(axisRadius(maxAxisRadius), i); })
         .attr("class", "line")
         .style("stroke", "black");
+
 
     // TODO: render grid lines in gray
     // Render horizontal grid lines
@@ -204,7 +221,8 @@ function initVis(data){
         .attr("dy", "0.35em")
         .attr("x", function(d, i){ return radarX(axisRadius(textRadius), i); })
         .attr("y", function(d, i){ return radarY(axisRadius(textRadius), i); })
-        .text("dimension");
+        // .text("dimension");
+        .text(d=>d);
 
     // init menu for the visual channels
     channels.forEach(function(c){
@@ -228,7 +246,7 @@ function clear(){
 }
 
 //Create Table
-function CreateDataTable(data) {
+function CreateDataTable() {
 
     // console.log("Print column of Table");
     // console.log(data.columns);
@@ -294,19 +312,21 @@ function renderScatterplot(){
     xAxisLabel.text(xDomain);
     yAxisLabel.text(yDomain);
 
-    console.log("Domain:")
-    console.log(xDomain, yDomain, rDomain);
+    // console.log("renderScatterplot Data:")
+    // console.log(filteredData);
 
+    // console.log("Domain:")
+    // console.log(xDomain, yDomain, rDomain);
 
     // TODO: re-render axes
     // TODO: create a global variable - object dictionary to hold dimensions -> [domain] and do away with x, y and r
     // Re-render axes with new domains
     x.domain(d3.extent(data, d => +d[xDomain]));
     y.domain(d3.extent(data, d => +d[yDomain]));
-    r.domain(d3.extent(data, d => +d[rDomain]));
+    size.domain(d3.extent(data, d => +d[rDomain]));
 
-    console.log("xDomain:", x, Math.floor(d3.min(data, d => +d[xDomain])/10)*10, Math.ceil(d3.max(data, d => +d[xDomain])/10)*10 );
-    console.log("yDomain:", y, d3.extent(data, d => +d[yDomain]));
+    // console.log("xDomain:", x, Math.floor(d3.min(data, d => +d[xDomain])/10)*10, Math.ceil(d3.max(data, d => +d[xDomain])/10)*10 );
+    // console.log("yDomain:", y, d3.extent(data, d => +d[yDomain]));
 
     xAxis.call(d3.axisBottom(x));
     yAxis.call(d3.axisLeft(y));
@@ -318,35 +338,118 @@ function renderScatterplot(){
     // Render dots
     let category = data.columns[0];
     let distinctCategories = new Set(data.map(d => d[category]));
-    //define coloring for each of the distinct categories returned.
-    //TODO Use a continuous coloring instead- can accommodated a wide range of categories
-    let colorCategories = d3.schemeCategory10.slice(0, distinctCategories.size);
-    let colorScale = d3.scaleOrdinal()
-       .domain([distinctCategories])
-       .range(colorCategories);
+
+    // Define a continuous color scale
+    let color = d3.scaleSequential(d3.interpolateRainbow)
+        .domain([0, distinctCategories.size]);
+
 
     scatter.selectAll(".dot")
-        .data(data)
+        .data(filteredData)
         .enter()
         .append("circle")
         .attr("class", "dot")
         .attr("cx", d => x(+d[xDomain]))
         .attr("cy", d => y(+d[yDomain]))
-        .attr("r", d => Math.abs(r(+d[rDomain]))/25)
-        .style("fill", d => colorScale(d[category]));
-
-
-    console.log("Category:")
-    console.log(category, distinctCategories, colorCategories);
+        .attr("r", d => Math.abs(size(+d[rDomain])))
+        .style("fill", d => color([...distinctCategories].indexOf(d[category])));
 
 }
 
 function renderRadarChart(){
 
     // TODO: show selected items in legend
+    let category = data.columns[0];
+    let distinctCategories = new Set(data.map(d => d[category]));
 
-    // TODO: render polylines in a unique color
+    // Define a continuous color scale
+    let color = d3.scaleSequential(d3.interpolateRainbow)
+        .domain([0, distinctCategories.size]);
 
+    // Create legend items
+    const legend = d3.select("#legend");
+    const legendItems = legend.selectAll(".legend-item")
+        .data(Array.from(distinctCategories))
+        .enter()
+        .append("div")
+        .attr("class", "legend-item");
+
+    // Add color circles to legend
+    legendItems.append("div")
+        .attr("class", "color-circle")
+        .style("background-color", (d, i) => color(i));
+
+    //Add category labels to legend
+    legendItems.append("span")
+        .text(d => d)
+        .style("margin-left", "5px");
+
+    // Add close button to each legend item
+    // legendItems.append("span")
+    //     .attr("class", "close")
+    //     .text("×")
+    //     .on("click", function () {
+    //         // Handle close button click
+    //         const item = d3.select(this.parentNode);
+    //         item.remove();
+    //     });
+
+    // Add checkbox for each item
+    legendItems.append("input")
+        .attr("type", "checkbox")
+        .attr("class", "legend-checkbox")
+        .text(d => d)
+        .attr("id", d => `checkbox-${d}`)
+        .attr("checked", true) // Ensure the checkbox is checked by default
+        .on("change", handleCheckboxChange); // Implement your checkbox change handler
+
+    //  // TODO: render polylines in a unique color
+
+    //  // Render polylines in a unique color
+    // let radarPolylines = radar.selectAll(".polyline")
+    //     .data(filteredData)
+    //     .enter()
+    //     .append("g")
+    //     .attr("class", "polyline");
+
+    // console.log("renderRadarChart Data:")
+    // console.log(filteredData);
+
+    // let radarLine = d3.lineRadial()
+    //     .radius(function(d) {return r(+d.value); })
+    //     .angle(function(d, i) {return radarAxesAngle * i; })
+    //     .curve(d3.curveLinearClosed);
+    // radarPolylines.append("path")
+    //     .data(filteredData)
+    //     .attr("d", function(d) {
+    //         const mappedData = dimensions.map(dim => ({ dimension: dim, value: +d[dim] }));
+    //         return radarLine(mappedData);
+    //     })
+    //     .style("stroke", (d, i) => color(i % distinctCategories.size))
+    //     .style("fill", "none")
+    //     .style("stroke-width", 2)
+    //     .style("opacity", 0.5);
+
+}
+
+// Function to filter data based on selected checkboxes
+function handleCheckboxChange() {
+    // Get the values of checked checkboxes
+    // Get the values of checked checkboxes
+    const checkboxes = d3.selectAll('.legend-checkbox').nodes();
+    const selectedValues = checkboxes
+        .filter(checkbox => checkbox.checked)
+        .map(checkbox => checkbox.id.replace('checkbox-', ''));
+
+
+    filteredData = data.filter(d => selectedValues.includes(d[data.columns[0]]));
+    console.log("Start------------------------------------------")
+    console.log("Data",selectedValues, data)
+    console.log("filteredData", data, filteredData)
+    console.log("End------------------------------------------")
+
+    renderScatterplot();
+    // renderRadarChart();
 }
 
 
