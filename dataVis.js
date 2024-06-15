@@ -68,13 +68,10 @@ function init() {
 
         let reader = new FileReader();
         reader.onloadend = function () {
-            console.log("data loaded: ");
-            console.log(reader.result);
-
+            
             // parse reader.result data and call the init functions with the parsed data!
             // Parse CSV data with d3.csvParse
             data = d3.csvParse(reader.result);
-            console.log("Parsed data: ", data);
 
             initVis();
 
@@ -504,3 +501,151 @@ function openPage(pageName,elmnt,color) {
     document.getElementById(pageName).style.display = "block";
     elmnt.style.backgroundColor = color;
 }
+
+async function drawBubbleMap() {
+    // Load the data
+    const data = await d3.json('https://gist.githubusercontent.com/mbostock/4090848/raw/world-110m.json');
+
+    const width = 960, height = 600;
+
+    const projection = d3.geoMercator()
+        .scale(150)
+        .translate([width / 2, height / 2]);
+
+    const path = d3.geoPath()
+        .projection(projection);
+
+    const svg = d3.select("#bubble-map").append("svg")
+        .attr("width", width)
+        .attr("height", height);
+
+    svg.append("path")
+        .datum(topojson.feature(data, data.objects.countries))
+        .attr("d", path)
+        .attr("class", "country");
+
+    const bubbleData = [
+        { name: "Country A", coordinates: [10, 51], radius: 30 },
+        { name: "Country B", coordinates: [-20, 25], radius: 50 }
+    ];
+
+    svg.selectAll("circle")
+        .data(bubbleData)
+        .enter().append("circle")
+        .attr("cx", d => projection(d.coordinates)[0])
+        .attr("cy", d => projection(d.coordinates)[1])
+        .attr("r", d => d.radius)
+        .attr("fill", "red")
+        .attr("opacity", 0.6);
+}
+
+drawBubbleMap();
+
+async function drawBarChartRace() {
+    const data = await d3.csv('https://gist.githubusercontent.com/mbostock/436f161d7e0a46e5e41d3e6ff6f17e9f/raw/countries.csv');
+
+    const margin = { top: 16, right: 6, bottom: 6, left: 0 };
+    const barSize = 48;
+    const width = 960;
+    const height = margin.top + barSize * 12 + margin.bottom;
+
+    const svg = d3.select("#bar-chart-race").append("svg")
+        .attr("width", width)
+        .attr("height", height)
+        .attr("viewBox", [0, 0, width, height]);
+
+    const x = d3.scaleLinear([0, 1], [margin.left, width - margin.right]);
+    const y = d3.scaleBand()
+        .domain(d3.range(12 + 1))
+        .rangeRound([margin.top, margin.top + barSize * (12 + 1 + 0.1)])
+        .padding(0.1);
+
+    const formatNumber = d3.format(",d");
+    const color = d3.scaleOrdinal(d3.schemeCategory10);
+
+    function rank(value) {
+        const data = Array.from(value);
+        data.sort((a, b) => d3.descending(a.value, b.value));
+        for (let i = 0; i < data.length; ++i) data[i].rank = Math.min(12, i);
+        return data;
+    }
+
+    function bars(svg) {
+        let bar = svg.append("g")
+            .attr("fill-opacity", 0.6)
+            .selectAll("rect");
+
+        return ([data], transition) => bar = bar
+            .data(data.slice(0, 12), d => d.name)
+            .join(
+                enter => enter.append("rect")
+                    .attr("fill", d => color(d.name))
+                    .attr("height", y.bandwidth())
+                    .attr("x", x(0))
+                    .attr("y", d => y(d.rank))
+                    .attr("width", d => x(d.value) - x(0)),
+                update => update,
+                exit => exit.transition(transition).remove()
+                    .attr("y", d => y(12))
+                    .attr("width", x(0) - x(0))
+            )
+            .call(bar => bar.transition(transition)
+                .attr("y", d => y(d.rank))
+                .attr("width", d => x(d.value) - x(0)));
+    }
+
+    function labels(svg) {
+        let label = svg.append("g")
+            .style("font", "bold 12px var(--sans-serif)")
+            .style("font-variant-numeric", "tabular-nums")
+            .attr("text-anchor", "end")
+            .selectAll("text");
+
+        return ([data], transition) => label = label
+            .data(data.slice(0, 12), d => d.name)
+            .join(
+                enter => enter.append("text")
+                    .attr("transform", d => `translate(${x(d.value)},${y(d.rank)})`)
+                    .attr("y", y.bandwidth() / 2)
+                    .attr("x", -6)
+                    .attr("dy", "-0.25em")
+                    .text(d => d.name)
+                    .call(text => text.append("tspan")
+                        .attr("fill-opacity", 0.7)
+                        .attr("font-weight", "normal")
+                        .attr("x", -6)
+                        .attr("dy", "1.15em")),
+                update => update,
+                exit => exit.transition(transition).remove()
+                    .attr("transform", d => `translate(${x(d.value)},${y(12)})`)
+                    .call(g => g.select("tspan").attr("fill-opacity", 0))
+            )
+            .call(bar => bar.transition(transition)
+                .attr("transform", d => `translate(${x(d.value)},${y(d.rank)})`)
+                .call(g => g.select("tspan").tween("text", function(d) {
+                    const i = d3.interpolateRound(d.value, d.value);
+                    return function(t) { this.textContent = formatNumber(i(t)); };
+                })));
+    }
+
+    const updateBars = bars(svg);
+    const updateLabels = labels(svg);
+
+    function tick() {
+        const transition = svg.transition()
+            .duration(750)
+            .ease(d3.easeLinear);
+
+        const value = data;
+        const ranked = rank(value);
+
+        x.domain([0, ranked[0].value]);
+
+        updateBars([ranked], transition);
+        updateLabels([ranked], transition);
+    }
+
+    d3.interval(tick, 3000);
+}
+
+drawBarChartRace();
