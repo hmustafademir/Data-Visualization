@@ -1,0 +1,5 @@
+exclude:
+  - .idea
+  - .gitignore
+  - README.md
+  - .nojekyll
