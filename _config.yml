@@ -1,5 +1,7 @@
+plugins: []
 exclude:
   - .idea
-  - .gitignore
   - README.md
+  - .gitignore
+include:
   - .nojekyll
