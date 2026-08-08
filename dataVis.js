@@ -77,11 +77,24 @@ function init() {
 
             CreateDataTable();
             // TODO: possible place to call the dashboard file for Part 2
-            initDashboard();
+            initDashboard(data);
         };
         reader.readAsBinaryString(fileInput.files[0]);
     };
     fileInput.addEventListener('change', readFile);
+}
+
+function loadSample(filename) {
+    clear();
+    d3.csv(filename).then(function(csvData) {
+        data = csvData;
+        initVis();
+        CreateDataTable();
+        initDashboard(data); // Pass data correctly to dashboard
+    }).catch(function(error) {
+        console.error("Error loading sample data:", error);
+        alert("Error loading " + filename + ". Make sure the file exists.");
+    });
 }
 
 function initVis(){
